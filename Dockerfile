@@ -1,23 +1,20 @@
-# 基于官方 RabbitMQ 镜像
-FROM rabbitmq:latest
+FROM rabbitmq:management
 
-# 定义环境变量（只定义变量名，不填具体值，可在部署时注入）
+# 安装延迟消息插件
+RUN apt-get update && apt-get install -y curl && \
+    curl -Lo /plugins/rabbitmq_delayed_message_exchange-3.13.0.ez \
+    https://github.com/rabbitmq/rabbitmq-delayed-message-exchange/releases/download/v3.13.0/rabbitmq_delayed_message_exchange-3.13.0.ez && \
+    chmod 644 /plugins/rabbitmq_delayed_message_exchange-3.13.0.ez && \
+    rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_delayed_message_exchange
+
+# 设置环境变量（使用外部注入）
 ENV RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS} \
     RABBITMQ_DEFAULT_USER=${RABBITMQ_DEFAULT_USER} \
     RABBITMQ_NODENAME=${RABBITMQ_NODENAME} \
     RABBITMQ_PRIVATE_URL=${RABBITMQ_PRIVATE_URL} \
     RABBITMQ_URL=${RABBITMQ_URL}
 
-# 创建 RabbitMQ 配置目录
-RUN mkdir -p /etc/rabbitmq/conf.d
-
-# 启用管理插件和延迟消息插件
-RUN rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_delayed_message_exchange
-
-# 暴露端口
-EXPOSE 5672 15672
-
-# 启动命令：动态引用环境变量
+# 启动命令
 CMD ["/bin/sh", "-c", "CONFIG_PATH=/etc; SYSTEM_FILE=hosts; \
     echo 127.0.0.1 rabbitmq >> ${CONFIG_PATH}/${SYSTEM_FILE} && \
     echo 'management.tcp.ip = ::' >> /etc/rabbitmq/conf.d/10-defaults.conf && \
